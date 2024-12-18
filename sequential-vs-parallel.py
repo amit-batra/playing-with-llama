@@ -1,11 +1,31 @@
 # Standard library imports
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+import json
 import time
 from typing import List, Tuple
 
 # Third-party library imports
 from ollama import Client
+
+# Name of the Ollama model to use for chat completions
+# This should match an available model in your Ollama installation
+model_name = "llama3.2:3b"
+
+# Template for structuring messages sent to the Ollama API
+# This follows the ChatML format used by many LLM chat APIs
+# System message sets the behavior and constraints for the AI
+# User message contains the actual query, with a placeholder for dynamic insertion
+messages_template_string = """[
+	{{
+		"role": "system",
+		"content": "Respond to these queries in plain text format. Be descriptive wherever it makes sense."
+	}},
+	{{
+		"role": "user",
+		"content": "{query}"
+	}}
+]"""
 
 class ParallelOllamaProcessor:
 	"""
@@ -28,9 +48,13 @@ class ParallelOllamaProcessor:
 		Returns:
 			str: The model's response content
 		"""
+		# Send a chat request to Ollama API and extract just the response content
+		# - Formats the query using the ChatML template
+		# - Parses the formatted string as JSON for the messages parameter
+		# - Returns only the 'content' field from the response message
 		return self.client.chat(
-			model='llama3.2:3b',
-			messages=[{'role': 'user', 'content': query}]
+			model=model_name,
+			messages=json.loads(messages_template_string.format(query=query))
 		)['message']['content']
 
 	async def process_query_async(self, query: str) -> str:
@@ -67,9 +91,12 @@ def run_sequential(queries: List[str]) -> Tuple[List[str], float]:
 	results = []
 
 	for query in queries:
+		# Send a chat request to the Ollama API with the formatted query
+		# The messages are created by inserting the query into a template and parsing as JSON
+		# Returns a response dictionary containing the model's reply
 		response = client.chat(
-			model='llama3.2:3b',
-			messages=[{'role': 'user', 'content': query}]
+			model=model_name,
+			messages=json.loads(messages_template_string.format(query=query))
 		)
 		results.append(response['message']['content'])
 
